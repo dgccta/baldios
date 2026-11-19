@@ -139,50 +139,61 @@
           norm(f.properties?.Titularidad) === 'PUBLICO'
       });
 
-  // 7. Carga de datos
 
+      7 // DIAGNÓSTICO DE CARGA DE ARCHIVOS
+      
+      async function probarArchivo(url) {
+        try {
+          const respuesta = await fetch(url);
+      
+          console.log('Archivo:', url);
+          console.log('Estado HTTP:', respuesta.status);
+      
+          const contenido = await respuesta.text();
+      
+          console.log('Caracteres recibidos:', contenido.length);
+          console.log('Primeros caracteres:', contenido.substring(0, 200));
+      
+          if (!contenido.trim()) {
+            throw new Error('El archivo llegó vacío');
+          }
+      
+          const datos = JSON.parse(contenido);
+      
+          console.log('Cantidad de registros:', datos.features?.length);
+          console.log('Archivo correcto:', url);
+      
+          return datos;
+      
+        } catch (error) {
+          console.error('FALLÓ:', url, error);
+          throw error;
+        }
+      }
+      
       Promise.all([
-        fetch('data/baldios.geojson').then(r => {
-          if (!r.ok) throw new Error('Error cargando baldios');
-          return r.json();
-        }),
-      
-        fetch('data/higienizados.geojson').then(r => {
-          if (!r.ok) throw new Error('Error cargando higienizados');
-          return r.json();
-        })
+        probarArchivo('data/baldios.geojson'),
+        probarArchivo('data/higienizados.geojson')
       ])
-      
       .then(([b, h]) => {
-      
-        // Baldíos sin higienizar
         baldios.addData(b).addTo(map);
-      
-        // Higienizados privados
         higienizadosPrivados.addData(h).addTo(map);
-      
-        // Higienizados públicos
         higienizadosPublicos.addData(h).addTo(map);
       
-        // Ajustar extensión del mapa
         const bounds = L.featureGroup([
           baldios,
           higienizadosPrivados,
           higienizadosPublicos
         ]).getBounds();
       
-        if (bounds.isValid()) {
-          map.fitBounds(bounds);
-        }
+        if (bounds.isValid()) map.fitBounds(bounds);
       
         console.log('Capas cargadas correctamente');
-      
       })
-      
       .catch(error => {
         console.error('Error al cargar las capas:', error);
-        alert('Error al cargar los datos: ' + error.message);
       });
+
 
     // 8. Control de capas agrupadas
 
