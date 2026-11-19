@@ -20,10 +20,18 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // 1. Mapa base
-    const map = L.map('map', { preferCanvas: true }).setView([-34.6, -58.45], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    const map = L.map('map', {
+      preferCanvas: true
+    }).setView([-34.6, -58.45], 12);
+    
+    // Fondo Esri Light Gray
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      {
+        attribution: 'Tiles &copy; Esri, HERE, Garmin, OpenStreetMap contributors',
+        maxZoom: 16
+      }
+    ).addTo(map);
 
     // 2. Utilidades: normaliza texto (sin acentos, mayúsculas) para comparar sin errores
     const norm = s => (s ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
