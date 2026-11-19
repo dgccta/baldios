@@ -55,12 +55,25 @@
       style: { color: '#bdbdbd', weight: 0.5, fillColor: '#e6e6e6', fillOpacity: 0.7 }
     });
 
-    // 6. Capa de baldios higienizados (símbolo por STATUS y Titularidad)
     const higienizados = L.geoJSON(null, {
+
+      // Estilo para polígonos
+      style: (f) => {
+        const color = colorPorStatus(f.properties?.Status);
+    
+        return {
+          color: '#ffffff',
+          weight: 1,
+          fillColor: color,
+          fillOpacity: 0.85
+        };
+      },
+    
+      // Símbolos para puntos
       pointToLayer: (f, latlng) => {
-        const color = colorPorStatus(f.properties.Status);
-        if (norm(f.properties.Titularidad) === 'PRIVADO') {
-          // Cuadrado
+        const color = colorPorStatus(f.properties?.Status);
+    
+        if (norm(f.properties?.Titularidad) === 'PRIVADO') {
           return L.marker(latlng, {
             icon: L.divIcon({
               className: '',
@@ -70,12 +83,22 @@
             })
           });
         }
-        // PÚBLICO (u otro valor): redondo
+    
         return L.circleMarker(latlng, {
-          radius: 6, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 1
+          radius: 6,
+          color: '#fff',
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 1
         });
       },
-      onEachFeature: (f, layer) => layer.bindPopup(popupHTML(f.properties), { maxHeight: 300 })
+    
+      onEachFeature: (f, layer) => {
+        layer.bindPopup(popupHTML(f.properties), {
+          maxHeight: 300
+        });
+      }
+    
     });
 
     // 7. Carga de datos
