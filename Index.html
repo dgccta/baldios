@@ -2,11 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Mapa de intervenciones</title>
+  <title>Mapa de baldios</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; }
+    html, body, #map { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+    .sq { width: 12px; height: 12px; border: 1.5px solid #fff; box-shadow: 0 0 2px rgba(0,0,0,.6); }
+    .popup-tabla td { padding: 2px 6px; vertical-align: top; font-size: 12px; }
+    .popup-tabla td:first-child { font-weight: 600; white-space: nowrap; }
+    .leyenda { background: #fff; padding: 8px 10px; border-radius: 4px; line-height: 1.7; font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+    .leyenda i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: middle; border: 1px solid #fff; }
   </style>
 </head>
 <body>
@@ -15,40 +20,96 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // 1. Mapa base
-    const map = L.map('map').setView([-34.6, -58.4], 10); // Ajustar al centro de tu zona
+    const map = L.map('map', { preferCanvas: true }).setView([-34.6, -58.45], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // 2. Estilos de cada capa
-    const estiloIntervenidas = {
-      color: '#1b7f3b', weight: 2, fillColor: '#2ecc71', fillOpacity: 0.5
-    };
-    const estiloAIntervenir = {
-      color: '#b03a2e', weight: 2, fillColor: '#e74c3c', fillOpacity: 0.5
-    };
+    // 2. Utilidades: normaliza texto (sin acentos, mayúsculas) para comparar sin errores
+    const norm = s => (s ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
 
-    // 3. Cargar las capas desde los GeoJSON
-    const intervenidas = L.geoJSON(null, {
-      style: estiloIntervenidas,
-      onEachFeature: (f, layer) => layer.bindPopup(f.properties?.nombre || 'Parcela intervenida')
-    });
-    const aIntervenir = L.geoJSON(null, {
-      style: estiloAIntervenir,
-      onEachFeature: (f, layer) => layer.bindPopup(f.properties?.nombre || 'Parcela a intervenir')
+    // 3. Colores por STATUS
+    const COLOR_CELESTE = '#8DE2D6';
+    const COLOR_AMARILLO = '#FFCC00';
+    const COLOR_GRIS_OSCURO = '#5F6368';
+    const STATUS_CELESTE = ['REOK', 'TERC'];
+    const STATUS_AMARILLO = ['INIC', 'OPER', 'PLAN', 'PROG', 'VERI'];
+
+    function colorPorStatus(status) {
+      const s = norm(status);
+      if (STATUS_CELESTE.includes(s)) return COLOR_CELESTE;
+      if (STATUS_AMARILLO.includes(s)) return COLOR_AMARILLO;
+      return COLOR_GRIS_OSCURO;
+    }
+
+    // 4. Popup con todas las columnas
+    function popupHTML(props) {
+      const filas = Object.entries(props)
+        .map(([k, v]) => `<tr><td>${k}</td><td>${v ?? ''}</td></tr>`)
+        .join('');
+      return `<table class="popup-tabla">${filas}</table>`;
+    }
+
+    // 5. Capa de baldios sin higienizar (gris claro)
+    const baldios = L.geoJSON(null, {
+      style: { color: '#bdbdbd', weight: 0.5, fillColor: '#e6e6e6', fillOpacity: 0.7 }
     });
 
-    fetch('data/intervenidas.geojson').then(r => r.json()).then(d => {
-      intervenidas.addData(d).addTo(map);
-      map.fitBounds(intervenidas.getBounds());
+    // 6. Capa de baldios higienizados (símbolo por STATUS y Titularidad)
+    const higienizados = L.geoJSON(null, {
+      pointToLayer: (f, latlng) => {
+        const color = colorPorStatus(f.properties.Status);
+        if (norm(f.properties.Titularidad) === 'PRIVADO') {
+          // Cuadrado
+          return L.marker(latlng, {
+            icon: L.divIcon({
+              className: '',
+              html: `<div class="sq" style="background:${color}"></div>`,
+              iconSize: [12, 12],
+              iconAnchor: [6, 6]
+            })
+          });
+        }
+        // PÚBLICO (u otro valor): redondo
+        return L.circleMarker(latlng, {
+          radius: 6, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 1
+        });
+      },
+      onEachFeature: (f, layer) => layer.bindPopup(popupHTML(f.properties), { maxHeight: 300 })
     });
-    fetch('data/a_intervenir.geojson').then(r => r.json()).then(d => aIntervenir.addData(d).addTo(map));
 
-    // 4. Control para prender y apagar capas
+    // 7. Carga de datos
+    Promise.all([
+      fetch('data/baldios.geojson').then(r => r.json()),
+      fetch('data/higienizados.geojson').then(r => r.json())
+    ]).then(([b, h]) => {
+      baldios.addData(b).addTo(map);
+      higienizados.addData(h).addTo(map);
+      map.fitBounds(baldios.getBounds());
+    });
+
+    // 8. Control de capas
     L.control.layers(null, {
-      'Parcelas intervenidas': intervenidas,
-      'Parcelas a intervenir': aIntervenir
+      'Baldios sin higienizar': baldios,
+      'Baldios higienizados': higienizados
     }, { collapsed: false }).addTo(map);
+
+    // 9. Leyenda
+    const leyenda = L.control({ position: 'bottomright' });
+    leyenda.onAdd = () => {
+      const d = L.DomUtil.create('div', 'leyenda');
+      d.innerHTML = `
+        <b>STATUS</b><br>
+        <i style="background:${COLOR_CELESTE}"></i>REOK / TERC<br>
+        <i style="background:${COLOR_AMARILLO}"></i>INIC / OPER / PLAN / PROG / VERI<br>
+        <i style="background:${COLOR_GRIS_OSCURO}"></i>Otro<br>
+        <b>Titularidad</b><br>
+        <i style="background:#999"></i>Privado (cuadrado)<br>
+        <i style="background:#999;border-radius:50%"></i>Público (redondo)<br>
+        <i style="background:#e6e6e6;border:1px solid #bdbdbd"></i>Sin higienizar`;
+      return d;
+    };
+    leyenda.addTo(map);
   </script>
 </body>
 </html>
