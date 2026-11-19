@@ -85,8 +85,23 @@
     ]).then(([b, h]) => {
       baldios.addData(b).addTo(map);
       higienizados.addData(h).addTo(map);
-      map.fitBounds(baldios.getBounds());
-    });
+      // Ajustar el mapa considerando ambas capas
+      const bounds = L.featureGroup([
+        baldios,
+        higienizados
+      ]).getBounds();
+    
+      if (bounds.isValid()) {
+        map.fitBounds(bounds);
+      }
+    
+      console.log('Capas cargadas correctamente');
+    
+    })
+    .catch(error => {
+      console.error('ERROR AL CARGAR EL MAPA:', error);
+      alert('No se pudieron cargar los datos: ' + error.message);
+    });;
 
     // 8. Control de capas
     L.control.layers(null, {
