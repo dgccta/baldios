@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa de intervenciones</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. Mapa base
+    const map = L.map('map').setView([-34.6, -58.4], 10); // Ajustar al centro de tu zona
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // 2. Estilos de cada capa
+    const estiloIntervenidas = {
+      color: '#1b7f3b', weight: 2, fillColor: '#2ecc71', fillOpacity: 0.5
+    };
+    const estiloAIntervenir = {
+      color: '#b03a2e', weight: 2, fillColor: '#e74c3c', fillOpacity: 0.5
+    };
+
+    // 3. Cargar las capas desde los GeoJSON
+    const intervenidas = L.geoJSON(null, {
+      style: estiloIntervenidas,
+      onEachFeature: (f, layer) => layer.bindPopup(f.properties?.nombre || 'Parcela intervenida')
+    });
+    const aIntervenir = L.geoJSON(null, {
+      style: estiloAIntervenir,
+      onEachFeature: (f, layer) => layer.bindPopup(f.properties?.nombre || 'Parcela a intervenir')
+    });
+
+    fetch('data/intervenidas.geojson').then(r => r.json()).then(d => {
+      intervenidas.addData(d).addTo(map);
+      map.fitBounds(intervenidas.getBounds());
+    });
+    fetch('data/a_intervenir.geojson').then(r => r.json()).then(d => aIntervenir.addData(d).addTo(map));
+
+    // 4. Control para prender y apagar capas
+    L.control.layers(null, {
+      'Parcelas intervenidas': intervenidas,
+      'Parcelas a intervenir': aIntervenir
+    }, { collapsed: false }).addTo(map);
+  </script>
+</body>
+</html>
